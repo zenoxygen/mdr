@@ -1,0 +1,12 @@
+[package]
+name = "mdr"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "^1.0.71"
+clap = "^2.33.0"
+tokio = { version = "^1.29.1", features = ["full"] }
+axum = { version = "^0.6.18", features = ["ws"] }
+pulldown-cmark = "^0.9.3"
+askama = "^0.12.0"
