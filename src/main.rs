@@ -80,24 +80,15 @@ async fn handle_websocket(mut ws: WebSocket, mut chan_rx: Extension<Receiver<Str
 }
 
 async fn render_markdown(file_path: &PathBuf, chan_tx: &Sender<String>) -> Result<()> {
-    let mut file = match File::open(file_path) {
-        Ok(file) => file,
-        Err(e) => return Err(anyhow!("Error: could not open file: {e}")),
-    };
-
+    let mut file = File::open(file_path)?;
     let mut markdown = String::new();
-    if let Err(e) = file.read_to_string(&mut markdown) {
-        return Err(anyhow!("Error: could not read file: {e}"));
-    }
+    file.read_to_string(&mut markdown)?;
 
     let parser = pulldown_cmark::Parser::new(&markdown);
-
     let mut html = String::new();
     pulldown_cmark::html::push_html(&mut html, parser);
 
-    if let Err(e) = chan_tx.send(html) {
-        return Err(anyhow!("Error: could not send data to channel: {e}"));
-    }
+    chan_tx.send(html)?;
 
     Ok(())
 }
@@ -107,24 +98,11 @@ async fn check_file(file_path: &PathBuf, chan_tx: &Sender<String>) -> Result<()>
     let mut previous_mtime = SystemTime::UNIX_EPOCH;
 
     loop {
-        let metadata = match metadata(file_path) {
-            Ok(metadata) => metadata,
-            Err(e) => {
-                return Err(anyhow!("Error: could not get file metadata: {e}"));
-            }
-        };
-
-        let last_mtime = match metadata.modified() {
-            Ok(time) => time,
-            Err(e) => {
-                return Err(anyhow!("Error: could not get last modification time: {e}"));
-            }
-        };
+        let metadata = metadata(file_path)?;
+        let last_mtime = metadata.modified()?;
 
         if previous_mtime != last_mtime {
-            if let Err(e) = render_markdown(file_path, chan_tx).await {
-                return Err(anyhow!("{e}"));
-            }
+            render_markdown(file_path, chan_tx).await?;
             previous_mtime = last_mtime;
         }
 
@@ -171,11 +149,11 @@ async fn main() -> Result<()> {
     let host = format!("{ip}:{port}");
     let host: SocketAddr = match host.parse() {
         Ok(host) => host,
-        Err(_) => return Err(anyhow!("Error: could not parse ip/port")),
+        Err(_) => return Err(anyhow!("could not parse ip/port")),
     };
 
     if !Path::new(&file).exists() {
-        return Err(anyhow!("Error: file does not exist"));
+        return Err(anyhow!("file does not exist"));
     }
 
     let file_path = PathBuf::from(file);
@@ -185,6 +163,7 @@ async fn main() -> Result<()> {
     task::spawn(async move {
         if let Err(e) = check_file(&file_path, &chan_tx).await {
             eprintln!("{e}");
+            std::process::exit(1);
         }
     });
 
@@ -204,17 +183,11 @@ async fn main() -> Result<()> {
 
     let mut cmd = Command::new("xdg-open");
     cmd.arg(&format!("http://{host}"));
+    cmd.spawn()?;
 
-    if let Err(e) = cmd.spawn() {
-        eprintln!("Error: could not open browser: {e}");
-    }
-
-    if let Err(e) = axum::Server::bind(&host)
+    axum::Server::bind(&host)
         .serve(app.into_make_service())
-        .await
-    {
-        return Err(anyhow!("{e}"));
-    }
+        .await?;
 
     Ok(())
 }
