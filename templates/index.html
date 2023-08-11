@@ -5,6 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 		<title>{{ filename }}</title>
 		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown-light.min.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
 		<style>
 			.markdown-body {
 				box-sizing:border-box;
@@ -19,11 +20,13 @@
 		<main>
 			<div id="content" class="markdown-body"></div>
 		</main>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 		<script>
 			const ws = new WebSocket("ws://{{ ip }}:{{ port }}/websocket");
 			const content = document.getElementById("content");
 			ws.onmessage = (event) => {
 				content.innerHTML = event.data;
+				hljs.highlightAll();
 			};
 		</script>
 	</body>
